@@ -1,0 +1,59 @@
+---
+certificates_delegate_to: localhost
+certificates_store_path: ./artifacts
+certificates_ca_prefix: "root_"
+certificates_ca_organization_name: "Root CA"
+certificates_certs_prefix: "root_"
+# certificates_members:
+#   - name: "name"
+#     common_name: "name"
+#     subject_alt_name:
+#       - "DNS:name.dc.local"
+#       - "IP:127.0.0.1"
+
+certificates_members_name: "{{ inventory_hostname }}"
+certificates_members: |
+  {% filter from_yaml %}
+  {% for item in ansible_play_hosts %}
+  - name: {{ item }}
+    common_name: {{ item }}
+    subject_alt_name:
+      - DNS:{{ hostvars[item]['ansible_facts']['fqdn']}}
+      - IP:127.0.0.1
+  {% endfor %}
+  {% endfilter %}
+
+certificates_member_cafile:   /etc/root/certs/ca.crt
+certificates_member_certfile: /etc/root/certs/root.crt
+certificates_member_keyfile:  /etc/root/certs/root.key
+certificates_member_dh_params_file:  /etc/root/certs/dhparam.pem
+certificates_member_dh_params_file_size: 4096
+
+certificates_member_cafile_owner: root
+certificates_member_cafile_group: root
+certificates_member_cafile_mode: 0644
+
+certificates_member_certfile_owner: root
+certificates_member_certfile_group: root
+certificates_member_certfile_mode: 0644
+
+certificates_member_keyfile_owner: root
+certificates_member_keyfile_group: root
+certificates_member_keyfile_mode: 0600
+
+certificates_member_dh_params_file_owner: root
+certificates_member_dh_params_file_group: root
+certificates_member_dh_params_file_mode: 0600
+
+certificates_ca_store_path: ./artifacts/ca
+
+certificates_ca_path_debian: /usr/local/share/ca-certificates
+certificates_ca_path:
+  RedHat:
+    6: /usr/local/share/ca-certificates
+    7: /etc/pki/ca-trust/source/anchors
+  Debian:
+    7: '{{ certificates_ca_path_debian }}'
+    8: '{{ certificates_ca_path_debian }}'
+  Ubuntu:
+    24: '{{ certificates_ca_path_debian }}'

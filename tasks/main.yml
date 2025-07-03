@@ -1,0 +1,8 @@
+---
+- name: generate and upload certificates
+  import_tasks: generate.yaml
+  tags: [ generate ]
+
+- name: import ca certs
+  import_tasks: import_ca.yaml
+  tags: [ import_ca ]

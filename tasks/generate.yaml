@@ -1,0 +1,127 @@
+---
+- name: Generate on {{ certificates_delegate_to }}
+  block:
+    - name: "Generate a dh params file"
+      community.crypto.openssl_dhparam:
+        path: "{{ certificates_store_path }}/dhparam_{{ certificates_member_dh_params_file_size }}.pem"
+        size: "{{ certificates_member_dh_params_file_size | default(4096) }}"
+      with_items: "{{ certificates_members }}"
+
+    - name: "Create {{ certificates_store_path }} directory to house keys and certificates"
+      file:
+        path: "{{ certificates_store_path }}"
+        state: directory
+
+    - name: "Generate private key for CA"
+      openssl_privatekey:
+        path: "{{ certificates_store_path }}/{{ certificates_ca_prefix }}ca.key"
+        type: RSA
+        size: 4096
+        state: present
+
+    - name: "Generate CSR for CA"
+      openssl_csr:
+        path: "{{ certificates_store_path }}/{{ certificates_ca_prefix }}ca.csr"
+        privatekey_path: "{{ certificates_store_path }}/{{ certificates_ca_prefix }}ca.key"
+        common_name: ca
+        organization_name: "{{ certificates_ca_organization_name }}"
+        basic_constraints:
+          - CA:TRUE
+          - pathlen:1
+        basic_constraints_critical: True
+        key_usage:
+          - keyCertSign
+          - digitalSignature
+
+    - name: "Generate self-signed CA certificate"
+      openssl_certificate:
+        path: "{{ certificates_store_path }}/{{ certificates_ca_prefix }}ca.crt"
+        privatekey_path: "{{ certificates_store_path }}/{{ certificates_ca_prefix }}ca.key"
+        csr_path: "{{ certificates_store_path }}/{{ certificates_ca_prefix }}ca.csr"
+        provider: selfsigned
+
+    - name: "Generate self-signed CA certificate"
+      openssl_certificate:
+        path: "{{ certificates_store_path }}/{{ certificates_ca_prefix }}ca.crt"
+        privatekey_path: "{{ certificates_store_path }}/{{ certificates_ca_prefix }}ca.key"
+        csr_path: "{{ certificates_store_path }}/{{ certificates_ca_prefix }}ca.csr"
+        provider: selfsigned
+
+    - name: "Generate private key for each member"
+      openssl_privatekey:
+        path: "{{ certificates_store_path }}/{{ certificates_certs_prefix }}{{ item.name }}.key"
+        type: RSA
+        size: 4096
+        state: present
+      with_items: "{{ certificates_members }}"
+
+    - name: "Generate CSR for each member"
+      openssl_csr:
+        path: "{{ certificates_store_path }}/{{ certificates_certs_prefix }}{{ item.name }}.csr"
+        privatekey_path: "{{ certificates_store_path }}/{{ certificates_certs_prefix }}{{ item.name }}.key"
+        common_name: "{{ item.common_name }}"
+        key_usage:
+          - digitalSignature
+        extended_key_usage:
+          - serverAuth
+          - clientAuth
+        subject_alt_name: "{{ item.subject_alt_name }}"
+      with_items: "{{ certificates_members }}"
+
+    - name: "Generate a member certificate signed with our own CA certificate"
+      openssl_certificate:
+        path: "{{ certificates_store_path }}/{{ certificates_certs_prefix }}{{ item.name }}.crt"
+        csr_path: "{{ certificates_store_path }}/{{ certificates_certs_prefix }}{{ item.name }}.csr"
+        ownca_path: "{{ certificates_store_path }}/{{ certificates_ca_prefix }}ca.crt"
+        ownca_privatekey_path: "{{ certificates_store_path }}/{{ certificates_ca_prefix }}ca.key"
+        provider: ownca
+      with_items: "{{ certificates_members }}"
+  delegate_to: "{{ certificates_delegate_to }}"
+  run_once: true
+
+- name: "Create directory for certs"
+  file:
+    path: "{{ item }}"
+    state: directory
+    recurse: yes
+  with_items:
+    - "{{ certificates_member_cafile | dirname }}"
+    - "{{ certificates_member_certfile | dirname }}"
+    - "{{ certificates_member_keyfile | dirname }}"
+    - "{{ certificates_member_dh_params_file | dirname }}"
+
+- name: "Copy over the CA certificate"
+  copy:
+    src: "{{ certificates_store_path }}/{{ certificates_ca_prefix }}ca.crt"
+    remote_src: False
+    dest: "{{ certificates_member_cafile }}"
+    owner: "{{ certificates_member_cafile_owner }}"
+    group: "{{ certificates_member_cafile_group }}"
+    mode: "{{ certificates_member_cafile_mode }}"
+
+- name: "Copy over the member certificate"
+  copy:
+    src: "{{ certificates_store_path }}/{{ certificates_certs_prefix }}{{ certificates_members_name }}.crt"
+    remote_src: false
+    dest: "{{ certificates_member_certfile }}"
+    owner: "{{ certificates_member_certfile_owner }}"
+    group: "{{ certificates_member_certfile_group }}"
+    mode: "{{ certificates_member_certfile_mode }}"
+
+- name: "Copy over the member key"
+  copy:
+    src: "{{ certificates_store_path }}/{{ certificates_certs_prefix }}{{ certificates_members_name }}.key"
+    remote_src: false
+    dest: "{{ certificates_member_keyfile }}"
+    owner: "{{ certificates_member_keyfile_owner }}"
+    group: "{{ certificates_member_keyfile_group }}"
+    mode: "{{ certificates_member_keyfile_mode }}"
+
+- name: "Copy over the dh params file"
+  copy:
+    src: "{{ certificates_store_path }}/dhparam_{{ certificates_member_dh_params_file_size }}.pem"
+    remote_src: false
+    dest: "{{ certificates_member_dh_params_file }}"
+    owner: "{{ certificates_member_dh_params_file_owner }}"
+    group: "{{ certificates_member_dh_params_file_group }}"
+    mode: "{{ certificates_member_dh_params_file_mode }}"
