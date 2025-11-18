@@ -12,14 +12,18 @@ certificates_certs_prefix: "root_"
 #       - "IP:127.0.0.1"
 
 certificates_members_name: "{{ inventory_hostname }}"
+certificates_members_altnames: []
 certificates_members: |
   {% filter from_yaml %}
   {% for item in ansible_play_hosts %}
   - name: {{ item }}
     common_name: {{ item }}
-    subject_alt_name:
-      - DNS:{{ hostvars[item]['ansible_facts']['fqdn']}}
-      - IP:127.0.0.1
+    subject_alt_name: {{
+      [
+        'DNS:' ~ hostvars[item].ansible_facts.fqdn,
+        'IP:127.0.0.1'
+      ] + certificates_members_altnames
+    }}    
   {% endfor %}
   {% endfilter %}
 
