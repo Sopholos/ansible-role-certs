@@ -76,6 +76,16 @@
         ownca_privatekey_path: "{{ certificates_store_path }}/{{ certificates_ca_prefix }}ca.key"
         provider: ownca
       with_items: "{{ certificates_members }}"
+
+    - name: "Create full chain certificate (Server Cert + Root CA)"
+      copy:
+        content: |
+          {{ lookup('file', certificates_store_path ~ '/' ~ certificates_certs_prefix ~ item.name ~ '.crt') }}
+          {{ lookup('file', certificates_store_path ~ '/' ~ certificates_ca_prefix ~ 'ca.crt') }}
+        dest: "{{ certificates_store_path }}/{{ certificates_certs_prefix }}{{ item.name }}.fullchain.crt"
+        mode: '0644'
+      with_items: "{{ certificates_members }}"
+
   delegate_to: "{{ certificates_delegate_to }}"
   run_once: true
 
@@ -101,7 +111,7 @@
 
 - name: "Copy over the member certificate"
   copy:
-    src: "{{ certificates_store_path }}/{{ certificates_certs_prefix }}{{ certificates_members_name }}.crt"
+    src: "{{ certificates_store_path }}/{{ certificates_certs_prefix }}{{ certificates_members_name }}.fullchain.crt"
     remote_src: false
     dest: "{{ certificates_member_certfile }}"
     owner: "{{ certificates_member_certfile_owner }}"
