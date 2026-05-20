@@ -21,6 +21,7 @@ certificates_members: |
     subject_alt_name: {{
       [
         'DNS:' ~ hostvars[item].ansible_facts.fqdn,
+        'IP:' ~ hostvars[item].ansible_facts.default_ipv4.address,
         'IP:127.0.0.1'
       ] + certificates_members_altnames
     }}    
