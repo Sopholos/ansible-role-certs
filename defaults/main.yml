@@ -61,4 +61,5 @@ certificates_ca_path:
     7: '{{ certificates_ca_path_debian }}'
     8: '{{ certificates_ca_path_debian }}'
   Ubuntu:
+    22: '{{ certificates_ca_path_debian }}'
     24: '{{ certificates_ca_path_debian }}'
